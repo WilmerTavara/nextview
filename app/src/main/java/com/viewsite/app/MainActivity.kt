@@ -432,7 +432,7 @@ scrollView.addView(
     private fun normalize(raw: String): String? {
         if (raw.isEmpty()) return null
         var value = raw
-        if (!value.startsWith("http")) value = "https://" + value
+        if (!value.startsWith("http://") && !value.startsWith("https://")) value = "http://" + value
         val uri = Uri.parse(value)
         val host = uri.host ?: return null
         if (!host.contains(".")) return null
