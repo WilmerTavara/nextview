@@ -228,13 +228,14 @@ class MainActivity : Activity() {
         }
         content.addView(domainsContainer)
 
-        scrollView.addView(
-            content,
-            ScrollView.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
+        // Agrega el contenido al área desplazable usando parámetros compatibles.
+scrollView.addView(
+    content,
+    ViewGroup.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT
+    )
+)
 
         // El encabezado permanece arriba; el contenido puede desplazarse debajo.
         root.addView(
