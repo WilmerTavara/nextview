@@ -24,32 +24,39 @@ import android.widget.TextView
 import android.widget.Toast
 
 /**
+ * Un sitio guardado: su dirección y, si el usuario escribió uno, su alias.
+ */
+data class Site(val url: String, val alias: String)
+
+/**
  * Pantalla principal de ViewSite.
  *
- * Esta versión cambia la presentación visual, pero conserva las funciones existentes:
- * - Cargar y guardar los dominios en SharedPreferences.
- * - Evitar que se agregue dos veces el mismo dominio.
- * - Tocar un dominio para abrirlo en WebActivity.
- * - Mantener pulsado un dominio para eliminarlo.
- *
- * Se usan vistas nativas de Android para no añadir dependencias externas.
+ * Esta versión agrega un alias opcional para cada sitio, para reconocer
+ * más fácilmente cada tarjeta. El resto de funciones se conserva:
+ * - Cargar y guardar los sitios en SharedPreferences.
+ * - Evitar que se agregue dos veces la misma dirección.
+ * - Tocar una tarjeta para abrir el sitio en WebActivity.
+ * - Mantener pulsada una tarjeta para eliminarla.
  */
 class MainActivity : Activity() {
 
-    // Lista en memoria de los dominios guardados en el teléfono.
-    private val domains = ArrayList<String>()
+    // Lista en memoria de los sitios guardados en el teléfono.
+    private val sites = ArrayList<Site>()
 
-    // Contenedor donde se dibujan las tarjetas de los dominios.
+    // Contenedor donde se dibujan las tarjetas de los sitios.
     private lateinit var domainsContainer: LinearLayout
 
-    // Mensaje que se muestra cuando todavía no hay dominios guardados.
+    // Mensaje que se muestra cuando todavía no hay sitios guardados.
     private lateinit var emptyHint: TextView
 
     // Etiqueta que muestra cuántos sitios están guardados.
     private lateinit var countLabel: TextView
 
-    // Campo donde el usuario escribe un dominio nuevo.
+    // Campo donde el usuario escribe una dirección nueva.
     private lateinit var domainInput: EditText
+
+    // Campo opcional donde el usuario escribe el alias del sitio.
+    private lateinit var aliasInput: EditText
 
     // Colores de la interfaz. Centralizarlos facilita cambiar el estilo después.
     private val colorPrimary = Color.rgb(37, 99, 235)       // Azul principal
@@ -62,11 +69,9 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Cargamos los dominios guardados antes de construir la pantalla.
+        // Cargamos los sitios guardados antes de construir la pantalla.
         loadDomains()
 
-        // Convierte medidas en dp a píxeles, para que el diseño mantenga proporciones
-        // similares en teléfonos con distintas densidades de pantalla.
         val dp = { value: Int -> (value * resources.displayMetrics.density).toInt() }
 
         // Contenedor principal de la pantalla.
@@ -105,7 +110,7 @@ class MainActivity : Activity() {
         )
 
         // El contenido desplazable permite que la pantalla funcione en móviles pequeños
-        // o cuando la lista contiene muchos dominios.
+        // o cuando la lista contiene muchos sitios.
         val scrollView = ScrollView(this).apply {
             clipToPadding = false
             setFillViewport(false)
@@ -116,7 +121,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
 
-        // Título de la sección de agregar dominios.
+        // Título de la sección de agregar sitios.
         content.addView(TextView(this).apply {
             text = "Agregar un sitio"
             textSize = 19f
@@ -125,13 +130,13 @@ class MainActivity : Activity() {
         })
 
         content.addView(TextView(this).apply {
-            text = "Escribe el dominio que deseas guardar."
+            text = "Escribe la dirección y, si quieres, un alias para reconocerla."
             textSize = 13f
             setTextColor(colorSecondaryText)
             setPadding(0, dp(4), 0, dp(12))
         })
 
-        // Tarjeta blanca que contiene el campo de entrada y el botón.
+        // Tarjeta blanca que contiene los campos de entrada y el botón.
         val inputCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(14), dp(14), dp(14), dp(14))
@@ -139,7 +144,7 @@ class MainActivity : Activity() {
         }
 
         domainInput = EditText(this).apply {
-            hint = "ejemplo.com"
+            hint = "ejemplo.com  o  192.168.1.10:8086"
             setSingleLine(true)
             textSize = 15f
             setTextColor(colorText)
@@ -156,8 +161,28 @@ class MainActivity : Activity() {
             )
         )
 
+        aliasInput = EditText(this).apply {
+            hint = "Alias opcional (ej: Casa, Trabajo)"
+            setSingleLine(true)
+            textSize = 15f
+            setTextColor(colorText)
+            setHintTextColor(Color.rgb(156, 163, 175))
+            setPadding(dp(12), dp(11), dp(12), dp(11))
+            background = roundedBackground(colorBackground, 0, 0, 12, 12)
+        }
+
+        inputCard.addView(
+            aliasInput,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = dp(10)
+            }
+        )
+
         val addButton = Button(this).apply {
-            text = "＋  Agregar dominio"
+            text = "＋  Agregar sitio"
             textSize = 15f
             isAllCaps = false
             setTextColor(colorWhite)
@@ -206,7 +231,7 @@ class MainActivity : Activity() {
 
         // Mensaje mostrado si la lista está vacía.
         emptyHint = TextView(this).apply {
-            text = "Todavía no tienes sitios guardados.\nAgrega tu primer dominio arriba."
+            text = "Todavía no tienes sitios guardados.\nAgrega tu primer sitio arriba."
             textSize = 14f
             setTextColor(colorSecondaryText)
             gravity = Gravity.CENTER
@@ -222,20 +247,20 @@ class MainActivity : Activity() {
         }
         content.addView(emptyHint, emptyParams)
 
-        // Aquí se crearán las tarjetas individuales de cada dominio.
+        // Aquí se crean las tarjetas individuales de cada sitio.
         domainsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
         content.addView(domainsContainer)
 
         // Agrega el contenido al área desplazable usando parámetros compatibles.
-scrollView.addView(
-    content,
-    ViewGroup.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT
-    )
-)
+        scrollView.addView(
+            content,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         // El encabezado permanece arriba; el contenido puede desplazarse debajo.
         root.addView(
@@ -247,34 +272,35 @@ scrollView.addView(
             )
         )
 
-        // Acción de agregar: se conserva la validación y el guardado existentes.
+        // Acción de agregar: valida la dirección, evita duplicados y guarda todo.
         addButton.setOnClickListener {
             val url = normalize(domainInput.text.toString().trim())
 
             when {
                 url == null -> {
-                    Toast.makeText(this, "Dominio no válido", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Dirección no válida", Toast.LENGTH_SHORT).show()
                 }
 
-                domains.contains(url) -> {
+                sites.any { it.url == url } -> {
                     Toast.makeText(
                         this,
-                        "Ese dominio ya está en la lista",
+                        "Esa dirección ya está en la lista",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
 
                 else -> {
-                    domains.add(url)
+                    sites.add(Site(url, aliasInput.text.toString().trim()))
                     saveDomains()
                     domainInput.setText("")
+                    aliasInput.setText("")
                     updateDomainsView()
-                    Toast.makeText(this, "Dominio agregado", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Sitio agregado", Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
-        // Dibuja las tarjetas iniciales con los dominios que se cargaron al abrir la app.
+        // Dibuja las tarjetas iniciales con los sitios que se cargaron al abrir la app.
         updateDomainsView()
 
         setContentView(root)
@@ -288,13 +314,13 @@ scrollView.addView(
         val dp = { value: Int -> (value * resources.displayMetrics.density).toInt() }
 
         // Actualiza el contador de sitios guardados.
-        countLabel.text = "${domains.size} ${if (domains.size == 1) "sitio" else "sitios"}"
+        countLabel.text = "${sites.size} ${if (sites.size == 1) "sitio" else "sitios"}"
 
-        emptyHint.visibility = if (domains.isEmpty()) View.VISIBLE else View.GONE
+        emptyHint.visibility = if (sites.isEmpty()) View.VISIBLE else View.GONE
         domainsContainer.removeAllViews()
 
-        domains.forEachIndexed { index, domain ->
-            // Cada dominio se muestra en una tarjeta blanca con un icono de globo.
+        sites.forEachIndexed { index, site ->
+            // Cada sitio se muestra en una tarjeta blanca con un icono.
             val card = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -318,14 +344,15 @@ scrollView.addView(
                 LinearLayout.LayoutParams(dp(48), dp(48))
             )
 
-            // Nombre y dirección del sitio.
+            // Alias y dirección del sitio.
             val details = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), 0, dp(6), 0)
             }
 
+            // Título: el alias si existe; si no, el dominio.
             val title = TextView(this).apply {
-                text = displayDomain(domain)
+                text = if (site.alias.isNotBlank()) site.alias else displayDomain(site.url)
                 textSize = 15f
                 setTypeface(typeface, Typeface.BOLD)
                 setTextColor(colorText)
@@ -334,8 +361,9 @@ scrollView.addView(
             }
             details.addView(title)
 
+            // Subtítulo: la dirección completa.
             val subtitle = TextView(this).apply {
-                text = domain
+                text = site.url
                 textSize = 12f
                 setTextColor(colorSecondaryText)
                 maxLines = 1
@@ -357,18 +385,20 @@ scrollView.addView(
                 gravity = Gravity.CENTER
             }, LinearLayout.LayoutParams(dp(24), ViewGroup.LayoutParams.WRAP_CONTENT))
 
-            // Tocar la tarjeta conserva el comportamiento original: abrir WebActivity.
+            // Tocar la tarjeta abre el sitio en WebActivity.
             card.setOnClickListener {
-                startActivity(Intent(this, WebActivity::class.java).putExtra("url", domains[index]))
+                startActivity(Intent(this, WebActivity::class.java).putExtra("url", sites[index].url))
             }
 
-            // Mantener pulsada la tarjeta conserva la función original de eliminación.
+            // Mantener pulsada la tarjeta elimina el sitio.
             card.setOnLongClickListener {
                 AlertDialog.Builder(this)
-                    .setTitle("¿Eliminar dominio?")
-                    .setMessage(domains[index])
+                    .setTitle("¿Eliminar sitio?")
+                    .setMessage(
+                        if (site.alias.isNotBlank()) site.alias + "\n" + site.url else site.url
+                    )
                     .setPositiveButton("Eliminar") { _, _ ->
-                        domains.removeAt(index)
+                        sites.removeAt(index)
                         saveDomains()
                         updateDomainsView()
                     }
@@ -388,7 +418,7 @@ scrollView.addView(
     }
 
     /**
-     * Devuelve una versión corta del dominio para el título de la tarjeta.
+     * Devuelve una versión corta de la dirección para el título de la tarjeta.
      * No modifica la URL almacenada ni la que se abre.
      */
     private fun displayDomain(url: String): String {
@@ -426,47 +456,50 @@ scrollView.addView(
     }
 
     /**
-     * Normaliza el dominio antes de guardarlo.
-     * Se conserva la lógica original para no cambiar el comportamiento actual.
+     * Normaliza la dirección antes de guardarla.
+     * Respeta el puerto y la ruta que el usuario escribió.
      */
-     private fun normalize(raw: String): String? {
-    if (raw.isEmpty()) return null
-    var value = raw
-    if (!value.startsWith("http://") && !value.startsWith("https://")) value = "http://" + value
-    val uri = Uri.parse(value)
-    val host = uri.host ?: return null
-    if (!host.contains(".")) return null
-    return value
-     }
-    /*private fun normalize(raw: String): String? {
+    private fun normalize(raw: String): String? {
         if (raw.isEmpty()) return null
         var value = raw
         if (!value.startsWith("http://") && !value.startsWith("https://")) value = "http://" + value
         val uri = Uri.parse(value)
         val host = uri.host ?: return null
         if (!host.contains(".")) return null
-        return uri.scheme.toString() + "://" + host
-    }*/
+        return value
+    }
 
     /**
-     * Recupera los dominios guardados localmente en el teléfono.
-     * Se conserva el mismo nombre de preferencias y la misma clave que antes.
+     * Recupera los sitios guardados localmente en el teléfono.
+     * Formato nuevo: "url|alias". Los registros viejos (solo url, sin "|")
+     * se cargan igual que siempre, quedando sin alias.
      */
     private fun loadDomains() {
-        domains.clear()
+        sites.clear()
         val saved = getSharedPreferences("viewsite", MODE_PRIVATE).getString("domains", "")
         if (!saved.isNullOrEmpty()) {
-            domains.addAll(saved.split("\n"))
+            for (line in saved.split("\n")) {
+                if (line.isBlank()) continue
+                if (line.contains("|")) {
+                    val parts = line.split("|", limit = 2)
+                    sites.add(Site(parts[0], parts[1]))
+                } else {
+                    sites.add(Site(line, ""))
+                }
+            }
         }
     }
 
     /**
      * Guarda la lista en el almacenamiento privado de la aplicación.
-     * Se mantiene el formato original para conservar los datos existentes.
+     * Los sitios con alias se guardan como "url|alias" y los demás solo como "url".
      */
     private fun saveDomains() {
+        val stored = sites.joinToString("\n") { site ->
+            if (site.alias.isBlank()) site.url else site.url + "|" + site.alias
+        }
         getSharedPreferences("viewsite", MODE_PRIVATE)
-            .edit().putString("domains", domains.joinToString("\n")).apply()
+            .edit().putString("domains", stored).apply()
     }
 }
 
@@ -474,7 +507,6 @@ scrollView.addView(
  * Pantalla que muestra el sitio web elegido por el usuario.
  *
  * Esta clase se mantiene funcionalmente igual que en la versión original.
- * No se cambia aquí la configuración HTTP ni el comportamiento de navegación.
  */
 class WebActivity : Activity() {
 
