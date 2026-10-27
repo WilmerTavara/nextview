@@ -58,13 +58,24 @@ class MainActivity : Activity() {
     // Campo opcional donde el usuario escribe el alias del sitio.
     private lateinit var aliasInput: EditText
 
-    // Colores de la interfaz. Centralizarlos facilita cambiar el estilo después.
-    private val colorPrimary = Color.rgb(37, 99, 235)       // Azul principal
-    private val colorText = Color.rgb(31, 41, 55)           // Texto oscuro
-    private val colorSecondaryText = Color.rgb(107, 114, 128)
-    private val colorBackground = Color.rgb(246, 248, 252)  // Fondo gris muy claro
-    private val colorBorder = Color.rgb(229, 234, 242)
-    private val colorWhite = Color.WHITE
+    // Paleta estilo iOS. Centralizarlos facilita cambiar el estilo después.
+    private val colorIOSBlue = Color.rgb(0, 122, 255)              // Azul iOS
+    private val colorBlueTint = Color.rgb(229, 240, 255)            // Fondo pill del contador
+    private val colorBackground = Color.rgb(242, 242, 247)          // Gris de fondo iOS
+    private val colorText = Color.rgb(0, 0, 0)                     // Texto principal negro
+    private val colorSecondaryText = Color.rgb(142, 142, 147)       // Texto secundario gris iOS
+    private val colorSeparator = Color.rgb(229, 229, 234)          // Separadores finos
+    private val colorCard = Color.WHITE                            // Tarjetas
+    private val colorChevron = Color.rgb(199, 199, 204)            // Chevron gris claro
+    private val colorPlaceholder = Color.rgb(199, 199, 204)        // Placeholder inputs
+    private val colorSectionLabel = Color.rgb(109, 109, 114)       // Labels de sección
+
+    // Paletas para los iconos de los sitios (cíclicas).
+    private val iconPalettes = listOf(
+        Pair(Color.rgb(94, 158, 255), Color.rgb(0, 122, 255)),    // Azul
+        Pair(Color.rgb(168, 85, 247), Color.rgb(124, 58, 237)),    // Violeta
+        Pair(Color.rgb(52, 211, 153), Color.rgb(5, 150, 105))     // Verde
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,7 +83,8 @@ class MainActivity : Activity() {
         // Cargamos los sitios guardados antes de construir la pantalla.
         loadDomains()
 
-        val dp = { value: Int -> (value * resources.displayMetrics.density).toInt() }
+        // Helper de densidad. Usamos Float para soportar valores como 0.5f.
+        val dp = { value: Float -> (value * resources.displayMetrics.density).toInt() }
 
         // Contenedor principal de la pantalla.
         val root = LinearLayout(this).apply {
@@ -80,154 +92,197 @@ class MainActivity : Activity() {
             setBackgroundColor(colorBackground)
         }
 
-        // Encabezado azul con el nombre de la aplicación y una breve descripción.
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(28), dp(22), dp(26))
-            background = roundedBackground(colorPrimary, 0, 0, 24, 24)
-        }
-
-        header.addView(TextView(this).apply {
-            text = "ViewSite"
-            textSize = 29f
-            setTypeface(typeface, Typeface.BOLD)
-            setTextColor(colorWhite)
-        })
-
-        header.addView(TextView(this).apply {
-            text = "Tus sitios web, en un solo lugar"
-            textSize = 14f
-            setTextColor(Color.rgb(225, 235, 255))
-            setPadding(0, dp(5), 0, 0)
-        })
-
-        root.addView(
-            header,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-
         // El contenido desplazable permite que la pantalla funcione en móviles pequeños
         // o cuando la lista contiene muchos sitios.
         val scrollView = ScrollView(this).apply {
             clipToPadding = false
-            setFillViewport(false)
-            setPadding(dp(18), dp(18), dp(18), dp(24))
+            setFillViewport(true)
+            setPadding(dp(16f), dp(8f), dp(16f), dp(30f))
         }
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
 
-        // Título de la sección de agregar sitios.
+        // Large title estilo iOS (34px, peso bold, espaciado negativo).
         content.addView(TextView(this).apply {
-            text = "Agregar un sitio"
-            textSize = 19f
+            text = "ViewSite"
+            textSize = 34f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(colorText)
+            letterSpacing = -0.02f
+            setPadding(dp(4f), dp(8f), dp(4f), dp(2f))
         })
 
+        // Subtítulo debajo del título.
         content.addView(TextView(this).apply {
-            text = "Escribe la dirección y, si quieres, un alias para reconocerla."
-            textSize = 13f
+            text = "Tus sitios web, en un solo lugar"
+            textSize = 15f
             setTextColor(colorSecondaryText)
-            setPadding(0, dp(4), 0, dp(12))
+            setPadding(dp(4f), 0, dp(4f), dp(22f))
         })
 
-        // Tarjeta blanca que contiene los campos de entrada y el botón.
+        // Label de sección en mayúsculas pequeñas grises, estilo iOS.
+        content.addView(TextView(this).apply {
+            text = "AGREGAR SITIO"
+            textSize = 13f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(colorSectionLabel)
+            letterSpacing = 0.04f
+            setPadding(dp(4f), dp(18f), dp(4f), dp(8f))
+        })
+
+        // Tarjeta agrupada que contiene los campos de entrada.
         val inputCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(14), dp(14), dp(14))
-            background = roundedBackground(colorWhite, dp(1), colorBorder, 18, 18)
+            background = roundedBackground(colorCard, 0, 0, 14, 14)
         }
+
+        // Fila URL: label a la izquierda + input.
+        val urlRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
+        }
+        urlRow.addView(TextView(this).apply {
+            text = "URL"
+            textSize = 16f
+            setTextColor(colorText)
+            setTypeface(typeface, Typeface.BOLD)
+        }, LinearLayout.LayoutParams(dp(64f), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            rightMargin = dp(12f)
+        })
 
         domainInput = EditText(this).apply {
-            hint = "ejemplo.com  o  192.168.1.10:8086"
+            hint = "ejemplo.com  ·  192.168.1.10:8086"
             setSingleLine(true)
-            textSize = 15f
+            textSize = 16f
             setTextColor(colorText)
-            setHintTextColor(Color.rgb(156, 163, 175))
-            setPadding(dp(12), dp(11), dp(12), dp(11))
-            background = roundedBackground(colorBackground, 0, 0, 12, 12)
+            setHintTextColor(colorPlaceholder)
+            background = null  // Sin subrayado de Android, estilo iOS.
+            setPadding(0, 0, 0, 0)
         }
+        urlRow.addView(
+            domainInput,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        )
+
+        // Separador de 0.5dp entre campos (alineado con el contenido del input).
+        val sepUrl = View(this).apply { setBackgroundColor(colorSeparator) }
 
         inputCard.addView(
-            domainInput,
+            urlRow,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
+        inputCard.addView(
+            sepUrl,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                Math.max(1, dp(0.5f))
+            ).apply {
+                leftMargin = dp(92f)
+                rightMargin = dp(16f)
+            }
+        )
+
+        // Fila Alias: label a la izquierda + input.
+        val aliasRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16f), dp(12f), dp(16f), dp(12f))
+        }
+        aliasRow.addView(TextView(this).apply {
+            text = "Alias"
+            textSize = 16f
+            setTextColor(colorText)
+            setTypeface(typeface, Typeface.BOLD)
+        }, LinearLayout.LayoutParams(dp(64f), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            rightMargin = dp(12f)
+        })
+
+        aliasInput = EditText(this).apply {
+            hint = "Opcional  ·  ej: Casa, Trabajo"
+            setSingleLine(true)
+            textSize = 16f
+            setTextColor(colorText)
+            setHintTextColor(colorPlaceholder)
+            background = null
+            setPadding(0, 0, 0, 0)
+        }
+        aliasRow.addView(
+            aliasInput,
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        )
+
+        inputCard.addView(
+            aliasRow,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             )
         )
 
-        aliasInput = EditText(this).apply {
-            hint = "Alias opcional (ej: Casa, Trabajo)"
-            setSingleLine(true)
-            textSize = 15f
-            setTextColor(colorText)
-            setHintTextColor(Color.rgb(156, 163, 175))
-            setPadding(dp(12), dp(11), dp(12), dp(11))
-            background = roundedBackground(colorBackground, 0, 0, 12, 12)
-        }
-
-        inputCard.addView(
-            aliasInput,
+        content.addView(
+            inputCard,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp(10)
-            }
+            )
         )
 
+        // Botón azul iOS lleno, esquinas 12dp.
         val addButton = Button(this).apply {
-            text = "＋  Agregar sitio"
-            textSize = 15f
+            text = "Agregar sitio"
+            textSize = 17f
             isAllCaps = false
-            setTextColor(colorWhite)
+            setTextColor(Color.WHITE)
             setTypeface(typeface, Typeface.BOLD)
-            background = roundedBackground(colorPrimary, 0, 0, 12, 12)
-            setPadding(dp(12), dp(5), dp(12), dp(5))
+            background = roundedBackground(colorIOSBlue, 0, 0, 12, 12)
+            setPadding(0, dp(15f), 0, dp(15f))
+            elevation = dp(4f).toFloat()
         }
 
         val addButtonParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            dp(50)
+            dp(50f)
         ).apply {
-            topMargin = dp(12)
+            topMargin = dp(16f)
         }
-        inputCard.addView(addButton, addButtonParams)
+        content.addView(addButton, addButtonParams)
 
-        val inputCardParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply {
-            bottomMargin = dp(24)
-        }
-        content.addView(inputCard, inputCardParams)
-
-        // Título y contador de la lista de sitios.
-        val sitesHeading = LinearLayout(this).apply {
+        // Encabezado de la lista: título + contador.
+        val listHeader = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-
-        sitesHeading.addView(TextView(this).apply {
-            text = "Mis sitios"
-            textSize = 19f
+        listHeader.addView(TextView(this).apply {
+            text = "MIS SITIOS"
+            textSize = 13f
             setTypeface(typeface, Typeface.BOLD)
-            setTextColor(colorText)
+            setTextColor(colorSectionLabel)
+            letterSpacing = 0.04f
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
 
         countLabel = TextView(this).apply {
-            textSize = 12f
-            setTextColor(colorPrimary)
-            setPadding(dp(10), dp(5), dp(10), dp(5))
-            background = roundedBackground(Color.rgb(219, 234, 254), 0, 0, 20, 20)
+            textSize = 13f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(colorIOSBlue)
+            setPadding(dp(10f), dp(3f), dp(10f), dp(3f))
+            background = roundedBackground(colorBlueTint, 0, 0, 10, 10)
         }
-        sitesHeading.addView(countLabel)
-        content.addView(sitesHeading)
+        listHeader.addView(countLabel)
+
+        val listHeaderParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            topMargin = dp(22f)
+            bottomMargin = dp(8f)
+        }
+        content.addView(listHeader, listHeaderParams)
 
         // Mensaje mostrado si la lista está vacía.
         emptyHint = TextView(this).apply {
@@ -235,23 +290,31 @@ class MainActivity : Activity() {
             textSize = 14f
             setTextColor(colorSecondaryText)
             gravity = Gravity.CENTER
-            setPadding(dp(18), dp(28), dp(18), dp(28))
-            background = roundedBackground(colorWhite, dp(1), colorBorder, 18, 18)
+            setPadding(dp(18f), dp(28f), dp(18f), dp(28f))
+            background = roundedBackground(colorCard, 0, 0, 14, 14)
         }
-
-        val emptyParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply {
-            topMargin = dp(12)
-        }
-        content.addView(emptyHint, emptyParams)
+        content.addView(
+            emptyHint,
+            LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        )
 
         // Aquí se crean las tarjetas individuales de cada sitio.
         domainsContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
         content.addView(domainsContainer)
+
+        // Hint sutil al final.
+        content.addView(TextView(this).apply {
+            text = "Mantén pulsada una tarjeta para eliminarla"
+            textSize = 12f
+            setTextColor(colorSecondaryText)
+            gravity = Gravity.CENTER
+            setPadding(dp(4f), dp(24f), dp(4f), dp(4f))
+        })
 
         // Agrega el contenido al área desplazable usando parámetros compatibles.
         scrollView.addView(
@@ -262,7 +325,7 @@ class MainActivity : Activity() {
             )
         )
 
-        // El encabezado permanece arriba; el contenido puede desplazarse debajo.
+        // El contenido puede desplazarse dentro de la pantalla.
         root.addView(
             scrollView,
             LinearLayout.LayoutParams(
@@ -273,6 +336,7 @@ class MainActivity : Activity() {
         )
 
         // Acción de agregar: valida la dirección, evita duplicados y guarda todo.
+        // Lógica idéntica a la versión anterior.
         addButton.setOnClickListener {
             val url = normalize(domainInput.text.toString().trim())
 
@@ -311,7 +375,7 @@ class MainActivity : Activity() {
      * Este método solo controla la presentación de la lista.
      */
     private fun updateDomainsView() {
-        val dp = { value: Int -> (value * resources.displayMetrics.density).toInt() }
+        val dp = { value: Float -> (value * resources.displayMetrics.density).toInt() }
 
         // Actualiza el contador de sitios guardados.
         countLabel.text = "${sites.size} ${if (sites.size == 1) "sitio" else "sitios"}"
@@ -319,41 +383,70 @@ class MainActivity : Activity() {
         emptyHint.visibility = if (sites.isEmpty()) View.VISIBLE else View.GONE
         domainsContainer.removeAllViews()
 
+        // Tarjeta agrupada con esquinas 14dp estilo "inset grouped" de iOS.
+        val groupCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = roundedBackground(colorCard, 0, 0, 14, 14)
+        }
+
         sites.forEachIndexed { index, site ->
-            // Cada sitio se muestra en una tarjeta blanca con un icono.
-            val card = LinearLayout(this).apply {
+            // Separador de 0.5dp entre items, indentado para alinear con el texto.
+            if (index > 0) {
+                groupCard.addView(
+                    View(this).apply { setBackgroundColor(colorSeparator) },
+                    LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        Math.max(1, dp(0.5f))
+                    ).apply {
+                        leftMargin = dp(74f)
+                        rightMargin = dp(16f)
+                    }
+                )
+            }
+
+            // Cada sitio se muestra en una fila con icono cuadrado redondeado.
+            val item = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(14), dp(13), dp(12), dp(13))
-                background = roundedBackground(colorWhite, dp(1), colorBorder, 16, 16)
+                setPadding(dp(16f), dp(11f), dp(16f), dp(11f))
                 isClickable = true
                 isFocusable = true
             }
 
-            // Círculo azul que identifica visualmente cada sitio.
-            val siteIcon = TextView(this).apply {
-                text = "↗"
-                textSize = 23f
-                gravity = Gravity.CENTER
+            // Icono cuadrado (44dp, radius 11dp) con degradado y letra inicial.
+            val (startColor, endColor) = iconPalettes[index % iconPalettes.size]
+            val iconText = (if (site.alias.isNotBlank()) site.alias else displayDomain(site.url))
+                .firstOrNull()?.uppercaseChar()?.toString() ?: "S"
+            val icon = TextView(this).apply {
+                text = iconText
+                textSize = 18f
                 setTypeface(typeface, Typeface.BOLD)
-                setTextColor(colorPrimary)
-                background = roundedBackground(Color.rgb(239, 246, 255), 0, 0, 14, 14)
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                background = GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    intArrayOf(startColor, endColor)
+                ).apply {
+                    cornerRadii = floatArrayOf(
+                        dp(11f).toFloat(), dp(11f).toFloat(),
+                        dp(11f).toFloat(), dp(11f).toFloat(),
+                        dp(11f).toFloat(), dp(11f).toFloat(),
+                        dp(11f).toFloat(), dp(11f).toFloat()
+                    )
+                }
             }
-            card.addView(
-                siteIcon,
-                LinearLayout.LayoutParams(dp(48), dp(48))
-            )
+            item.addView(icon, LinearLayout.LayoutParams(dp(44f), dp(44f)))
 
             // Alias y dirección del sitio.
             val details = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(12), 0, dp(6), 0)
+                setPadding(dp(14f), 0, dp(8f), 0)
             }
 
             // Título: el alias si existe; si no, el dominio.
             val title = TextView(this).apply {
                 text = if (site.alias.isNotBlank()) site.alias else displayDomain(site.url)
-                textSize = 15f
+                textSize = 16f
                 setTypeface(typeface, Typeface.BOLD)
                 setTextColor(colorText)
                 maxLines = 1
@@ -364,34 +457,34 @@ class MainActivity : Activity() {
             // Subtítulo: la dirección completa.
             val subtitle = TextView(this).apply {
                 text = site.url
-                textSize = 12f
+                textSize = 13f
                 setTextColor(colorSecondaryText)
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
-                setPadding(0, dp(4), 0, 0)
+                setPadding(0, dp(2f), 0, 0)
             }
             details.addView(subtitle)
 
-            card.addView(
+            item.addView(
                 details,
                 LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             )
 
-            // Indicador visual de que la tarjeta se puede abrir.
-            card.addView(TextView(this).apply {
+            // Chevron discreto a la derecha.
+            item.addView(TextView(this).apply {
                 text = "›"
-                textSize = 28f
-                setTextColor(Color.rgb(156, 163, 175))
+                textSize = 20f
+                setTextColor(colorChevron)
                 gravity = Gravity.CENTER
-            }, LinearLayout.LayoutParams(dp(24), ViewGroup.LayoutParams.WRAP_CONTENT))
+            }, LinearLayout.LayoutParams(dp(16f), ViewGroup.LayoutParams.WRAP_CONTENT))
 
             // Tocar la tarjeta abre el sitio en WebActivity.
-            card.setOnClickListener {
+            item.setOnClickListener {
                 startActivity(Intent(this, WebActivity::class.java).putExtra("url", sites[index].url))
             }
 
             // Mantener pulsada la tarjeta elimina el sitio.
-            card.setOnLongClickListener {
+            item.setOnLongClickListener {
                 AlertDialog.Builder(this)
                     .setTitle("¿Eliminar sitio?")
                     .setMessage(
@@ -407,14 +500,16 @@ class MainActivity : Activity() {
                 true
             }
 
-            val cardParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = dp(10)
-            }
-            domainsContainer.addView(card, cardParams)
+            groupCard.addView(
+                item,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
         }
+
+        domainsContainer.addView(groupCard)
     }
 
     /**
