@@ -702,6 +702,30 @@ class WebActivity : Activity() {
             )
         )
 
+                // Botón flotante "Inicio": círculo translúcido en la esquina superior
+        // derecha que regresa a la lista de sitios sin afectar la vista de la página.
+        val homeButton = TextView(this).apply {
+            text = "🏠"
+            textSize = 17f
+            gravity = Gravity.CENTER
+            isClickable = true
+            background = GradientDrawable().apply {
+                setColor(Color.argb(150, 255, 255, 255))
+                cornerRadius = dp(22f) * 1f
+                setStroke(dp(1f), Color.argb(60, 0, 0, 0))
+            }
+        }
+        homeButton.setOnClickListener { finish() }
+
+        frame.addView(
+            homeButton,
+            FrameLayout.LayoutParams(dp(44f), dp(44f)).apply {
+                topMargin = dp(14f)
+                marginEnd = dp(14f)
+                gravity = Gravity.TOP or Gravity.END
+            }
+        )
+
         // Los mensajes avanzan con el progreso real de la descarga.
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
