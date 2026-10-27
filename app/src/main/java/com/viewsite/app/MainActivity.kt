@@ -638,29 +638,52 @@ class WebActivity : Activity() {
         webView.settings.domStorageEnabled = true
         webView.settings.useWideViewPort = true
         webView.settings.loadWithOverviewMode = true
-
-        // Mensaje de carga, estilo coherente con la interfaz.
+        
+                // Mensaje de carga con estilo suave, tipo iOS.
         loadingText = TextView(this).apply {
             text = "Cargando…"
-            textSize = 15f
-            setTextColor(Color.rgb(80, 80, 85))
+            textSize = 14f
+            letterSpacing = 0.3f
+            setTextColor(Color.rgb(142, 142, 147))
             gravity = Gravity.CENTER
         }
 
-        // Pantalla de carga: círculo giratorio + mensaje, centrados.
+        // Círculo azul estilo iOS.
+        val spinner = ProgressBar(this).apply {
+            indeterminateTintList =
+                android.content.res.ColorStateList.valueOf(Color.rgb(0, 122, 255))
+        }
+
+        // Tarjeta translúcida con esquinas redondeadas que contiene todo.
+        val loadingCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(32f), dp(28f), dp(32f), dp(28f))
+            background = GradientDrawable().apply {
+                setColor(Color.argb(230, 255, 255, 255))
+                cornerRadius = dp(22f) * 1f
+                setStroke(dp(1f), Color.rgb(229, 229, 234))
+            }
+        }
+
+        loadingCard.addView(spinner, LinearLayout.LayoutParams(dp(36f), dp(36f)))
+        loadingCard.addView(loadingText, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            topMargin = dp(16f)
+        })
+
+        // Fondo con degradado suave de blanco a gris claro.
         loadingOverlay = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.WHITE)
-        }
-
-        loadingOverlay.addView(
-            ProgressBar(this),
-            LinearLayout.LayoutParams(dp(40f), dp(40f)).apply {
-                bottomMargin = dp(14f)
+            background = GradientDrawable().apply {
+                colors = intArrayOf(Color.WHITE, Color.rgb(242, 242, 247))
+                orientation = GradientDrawable.Orientation.TOP_BOTTOM
             }
-        )
-        loadingOverlay.addView(loadingText)
+        }
+        loadingOverlay.addView(loadingCard)
 
         // Contenedor: el WebView debajo y la pantalla de carga encima.
         val frame = FrameLayout(this)
@@ -701,6 +724,7 @@ class WebActivity : Activity() {
                 return if (sameSite) {
                     // Navegación interna: volvemos a mostrar la pantalla de carga.
                     loadingOverlay.visibility = View.VISIBLE
+                                        loadingOverlay.alpha = 1f
                     loadingText.text = "Cargando…"
                     false
                 } else {
@@ -710,9 +734,12 @@ class WebActivity : Activity() {
                 }
             }
 
-            override fun onPageFinished(view: WebView?, urlFinish: String?) {
-                // La página terminó de cargar: se oculta el mensaje.
-                loadingOverlay.visibility = View.GONE
+                        override fun onPageFinished(view: WebView?, urlFinish: String?) {
+                // La página terminó de cargar: desvanecimiento suave.
+                loadingOverlay.animate()
+                    .alpha(0f)
+                    .setDuration(250)
+                    .withEndAction { loadingOverlay.visibility = View.GONE }
             }
         }
 
