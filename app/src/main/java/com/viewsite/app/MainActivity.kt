@@ -22,6 +22,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.FrameLayout
+import android.widget.ProgressBar
 
 /**
  * Un sitio guardado: su dirección y, si el usuario escribió uno, su alias.
@@ -603,9 +605,17 @@ class MainActivity : Activity() {
  *
  * Esta clase se mantiene funcionalmente igual que en la versión original.
  */
+/**
+ * Pantalla que muestra el sitio web elegido por el usuario.
+ *
+ * Muestra un indicador de carga mientras la página se descarga:
+ * los mensajes cambian según el progreso real y desaparecen al terminar.
+ */
 class WebActivity : Activity() {
 
     private lateinit var webView: WebView
+    private lateinit var loadingOverlay: LinearLayout
+    private lateinit var loadingText: TextView
     private var baseHost: String? = null
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -620,6 +630,8 @@ class WebActivity : Activity() {
         }
         baseHost = Uri.parse(url).host
 
+        val dp = { value: Float -> (value * resources.displayMetrics.density).toInt() }
+
         // Crea el navegador integrado y conserva las opciones originales.
         webView = WebView(this)
         webView.settings.javaScriptEnabled = true
@@ -627,7 +639,57 @@ class WebActivity : Activity() {
         webView.settings.useWideViewPort = true
         webView.settings.loadWithOverviewMode = true
 
-        webView.webChromeClient = WebChromeClient()
+        // Mensaje de carga, estilo coherente con la interfaz.
+        loadingText = TextView(this).apply {
+            text = "Cargando…"
+            textSize = 15f
+            setTextColor(Color.rgb(80, 80, 85))
+            gravity = Gravity.CENTER
+        }
+
+        // Pantalla de carga: círculo giratorio + mensaje, centrados.
+        loadingOverlay = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.WHITE)
+        }
+
+        loadingOverlay.addView(
+            ProgressBar(this),
+            LinearLayout.LayoutParams(dp(40f), dp(40f)).apply {
+                bottomMargin = dp(14f)
+            }
+        )
+        loadingOverlay.addView(loadingText)
+
+        // Contenedor: el WebView debajo y la pantalla de carga encima.
+        val frame = FrameLayout(this)
+        frame.addView(
+            webView,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+        frame.addView(
+            loadingOverlay,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        )
+
+        // Los mensajes avanzan con el progreso real de la descarga.
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                when {
+                    newProgress < 55 -> loadingText.text = "Cargando…"
+                    newProgress < 89 -> loadingText.text = "Casi listo…"
+                    newProgress < 100 -> loadingText.text = "Un momento…"
+                }
+            }
+        }
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(
                 view: WebView,
@@ -637,7 +699,9 @@ class WebActivity : Activity() {
                 val base = baseHost
                 val sameSite = base != null && (host == base || host.endsWith("." + base))
                 return if (sameSite) {
-                    // Los enlaces del mismo sitio continúan dentro de ViewSite.
+                    // Navegación interna: volvemos a mostrar la pantalla de carga.
+                    loadingOverlay.visibility = View.VISIBLE
+                    loadingText.text = "Cargando…"
                     false
                 } else {
                     // Los enlaces externos se abren con la aplicación correspondiente.
@@ -645,9 +709,14 @@ class WebActivity : Activity() {
                     true
                 }
             }
+
+            override fun onPageFinished(view: WebView?, urlFinish: String?) {
+                // La página terminó de cargar: se oculta el mensaje.
+                loadingOverlay.visibility = View.GONE
+            }
         }
 
-        setContentView(webView)
+        setContentView(frame)
         webView.loadUrl(url)
     }
 
