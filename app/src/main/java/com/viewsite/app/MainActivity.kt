@@ -429,7 +429,16 @@ scrollView.addView(
      * Normaliza el dominio antes de guardarlo.
      * Se conserva la lógica original para no cambiar el comportamiento actual.
      */
-    private fun normalize(raw: String): String? {
+     private fun normalize(raw: String): String? {
+    if (raw.isEmpty()) return null
+    var value = raw
+    if (!value.startsWith("http://") && !value.startsWith("https://")) value = "http://" + value
+    val uri = Uri.parse(value)
+    val host = uri.host ?: return null
+    if (!host.contains(".")) return null
+    return value
+     }
+    /*private fun normalize(raw: String): String? {
         if (raw.isEmpty()) return null
         var value = raw
         if (!value.startsWith("http://") && !value.startsWith("https://")) value = "http://" + value
@@ -437,7 +446,7 @@ scrollView.addView(
         val host = uri.host ?: return null
         if (!host.contains(".")) return null
         return uri.scheme.toString() + "://" + host
-    }
+    }*/
 
     /**
      * Recupera los dominios guardados localmente en el teléfono.
