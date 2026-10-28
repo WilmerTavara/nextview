@@ -717,14 +717,21 @@ class WebActivity : Activity() {
         }
         homeButton.setOnClickListener { finish() }
 
-        frame.addView(
+                frame.addView(
+            homeButton,
+            FrameLayout.LayoutParams(dp(44f), dp(44f)).apply {
+                marginEnd = dp(6f)
+                gravity = Gravity.CENTER_VERTICAL or Gravity.END
+            }
+        )
+        /*frame.addView(
             homeButton,
             FrameLayout.LayoutParams(dp(44f), dp(44f)).apply {
                 topMargin = dp(14f)
                 marginEnd = dp(14f)
                 gravity = Gravity.TOP or Gravity.END
             }
-        )
+        )*/
 
         // Los mensajes avanzan con el progreso real de la descarga.
         webView.webChromeClient = object : WebChromeClient() {
@@ -747,9 +754,9 @@ class WebActivity : Activity() {
                 val sameSite = base != null && (host == base || host.endsWith("." + base))
                 return if (sameSite) {
                     // Navegación interna: volvemos a mostrar la pantalla de carga.
-                    loadingOverlay.visibility = View.VISIBLE
-                                        loadingOverlay.alpha = 1f
-                    loadingText.text = "Cargando…"
+                    //loadingOverlay.visibility = View.VISIBLE
+                                        //loadingOverlay.alpha = 1f
+                    //loadingText.text = "Cargando…"
                     false
                 } else {
                     // Los enlaces externos se abren con la aplicación correspondiente.
