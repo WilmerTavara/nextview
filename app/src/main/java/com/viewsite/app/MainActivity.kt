@@ -292,7 +292,7 @@ class MainActivity : Activity() {
         listHeader.addView(countLabel)
 
                 // Botón que alterna entre vista de lista y de cuadrícula.
-        val viewToggle = TextView(this).apply {
+        /*val viewToggle = TextView(this).apply {
             text = if (gridMode) "≡" else "▦"
             textSize = 19f
             setTypeface(typeface, Typeface.BOLD)
@@ -303,17 +303,27 @@ class MainActivity : Activity() {
             minWidth = dp(48f)
             minHeight = dp(48f)
             background = roundedBackground(colorBlueTint, 0, 0, 12, 12)
+        }*/
+
+        val viewToggle = TextView(this).apply {
+            text = if (gridMode) "≡" else "▦"
+            textSize = 20f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(colorIOSBlue)
+            gravity = Gravity.CENTER
+            isClickable = true
+            background = roundedBackground(colorBlueTint, 0, 0, 10, 10)
         }
         
-        /*viewToggle.setOnClickListener {
+        viewToggle.setOnClickListener {
             gridMode = !gridMode
             viewToggle.text = if (gridMode) "≡" else "▦"
             getSharedPreferences("viewsite", MODE_PRIVATE)
                 .edit().putBoolean("grid", gridMode).apply()
             updateDomainsView()
-        }*/
+        }
 
-                viewToggle.setOnClickListener {
+                /*viewToggle.setOnClickListener {
             gridMode = !gridMode
             viewToggle.text = if (gridMode) "≡" else "▦"
             getSharedPreferences("viewsite", MODE_PRIVATE)
@@ -329,7 +339,7 @@ class MainActivity : Activity() {
                         .setDuration(90)
                         .start()
                 }
-        }
+        }*/
         
         listHeader.addView(viewToggle, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
