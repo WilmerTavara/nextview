@@ -93,6 +93,8 @@ class MainActivity : Activity() {
 
         // Cargamos los sitios guardados antes de construir la pantalla.
         loadDomains()
+        // Recuperamos el modo de vista elegido (lista o cuadrícula).
+        gridMode = getSharedPreferences("viewsite", MODE_PRIVATE).getBoolean("grid", false)
 
         // Helper de densidad. Usamos Float para soportar valores como 0.5f.
         val dp = { value: Float -> (value * resources.displayMetrics.density).toInt() }
@@ -286,6 +288,30 @@ class MainActivity : Activity() {
         }
         listHeader.addView(countLabel)
 
+                // Botón que alterna entre vista de lista y de cuadrícula.
+        val viewToggle = TextView(this).apply {
+            text = if (gridMode) "≡" else "▦"
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(colorIOSBlue)
+            gravity = Gravity.CENTER
+            isClickable = true
+            background = roundedBackground(colorBlueTint, 0, 0, 10, 10)
+        }
+        viewToggle.setOnClickListener {
+            gridMode = !gridMode
+            viewToggle.text = if (gridMode) "≡" else "▦"
+            getSharedPreferences("viewsite", MODE_PRIVATE)
+                .edit().putBoolean("grid", gridMode).apply()
+            updateDomainsView()
+        }
+        listHeader.addView(viewToggle, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply {
+            leftMargin = dp(8f)
+        })
+
         val listHeaderParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
@@ -385,14 +411,29 @@ class MainActivity : Activity() {
      * Actualiza el contador, el mensaje de lista vacía y todas las tarjetas.
      * Este método solo controla la presentación de la lista.
      */
+        /**
+     * Actualiza el contador, el mensaje de lista vacía y redibuja los sitios
+     * según el modo de vista activo: lista o cuadrícula.
+     */
     private fun updateDomainsView() {
-        val dp = { value: Float -> (value * resources.displayMetrics.density).toInt() }
-
         // Actualiza el contador de sitios guardados.
         countLabel.text = "${sites.size} ${if (sites.size == 1) "sitio" else "sitios"}"
 
         emptyHint.visibility = if (sites.isEmpty()) View.VISIBLE else View.GONE
         domainsContainer.removeAllViews()
+
+        if (gridMode) {
+            renderGrid()
+        } else {
+            renderList()
+        }
+    }
+
+    /**
+     * Vista de lista: filas agrupadas estilo iOS (la vista original).
+     */
+    private fun renderList() {
+        val dp = { value: Float -> (value * resources.displayMetrics.density).toInt() }
 
         // Tarjeta agrupada con esquinas 14dp estilo "inset grouped" de iOS.
         val groupCard = LinearLayout(this).apply {
@@ -524,6 +565,125 @@ class MainActivity : Activity() {
     }
 
     /**
+     * Vista de cuadrícula: tarjetas de dos en dos con icono grande,
+     * alias y dirección centrados. Mismos colores y mismas acciones.
+     */
+    private fun renderGrid() {
+        val dp = { value: Float -> (value * resources.displayMetrics.density).toInt() }
+
+        // Recorremos los sitios de dos en dos para formar filas de dos columnas.
+        var i = 0
+        while (i < sites.size) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+            }
+
+            for (col in 0 until 2) {
+                if (i + col < sites.size) {
+                    val index = i + col
+                    val site = sites[index]
+                    val (startColor, endColor) = iconPalettes[index % iconPalettes.size]
+                    val iconText = (if (site.alias.isNotBlank()) site.alias else displayDomain(site.url))
+                        .firstOrNull()?.uppercaseChar()?.toString() ?: "S"
+
+                    val card = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        gravity = Gravity.CENTER
+                        setPadding(dp(14f), dp(18f), dp(14f), dp(16f))
+                        background = roundedBackground(colorCard, 0, 0, 14, 14)
+                        isClickable = true
+                        isFocusable = true
+                    }
+
+                    // Icono grande (56dp) con el mismo degradado cíclico de la lista.
+                    val icon = TextView(this).apply {
+                        text = iconText
+                        textSize = 22f
+                        setTypeface(typeface, Typeface.BOLD)
+                        setTextColor(Color.WHITE)
+                        gravity = Gravity.CENTER
+                        background = GradientDrawable(
+                            GradientDrawable.Orientation.TOP_BOTTOM,
+                            intArrayOf(startColor, endColor)
+                        ).apply {
+                            cornerRadii = floatArrayOf(
+                                dp(14f).toFloat(), dp(14f).toFloat(),
+                                dp(14f).toFloat(), dp(14f).toFloat(),
+                                dp(14f).toFloat(), dp(14f).toFloat(),
+                                dp(14f).toFloat(), dp(14f).toFloat()
+                            )
+                        }
+                    }
+                    card.addView(icon, LinearLayout.LayoutParams(dp(56f), dp(56f)))
+
+                    val title = TextView(this).apply {
+                        text = if (site.alias.isNotBlank()) site.alias else displayDomain(site.url)
+                        textSize = 15f
+                        setTypeface(typeface, Typeface.BOLD)
+                        setTextColor(colorText)
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        gravity = Gravity.CENTER
+                        setPadding(dp(6f), dp(10f), dp(6f), 0)
+                    }
+                    card.addView(title)
+
+                    val subtitle = TextView(this).apply {
+                        text = site.url
+                        textSize = 11f
+                        setTextColor(colorSecondaryText)
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        gravity = Gravity.CENTER
+                        setPadding(dp(6f), dp(2f), dp(6f), 0)
+                    }
+                    card.addView(subtitle)
+
+                    // Mismas acciones: tocar abre, mantener pulsado elimina.
+                    card.setOnClickListener {
+                        startActivity(Intent(this, WebActivity::class.java).putExtra("url", sites[index].url))
+                    }
+                    card.setOnLongClickListener {
+                        AlertDialog.Builder(this)
+                            .setTitle("¿Eliminar sitio?")
+                            .setMessage(
+                                if (site.alias.isNotBlank()) site.alias + "\n" + site.url else site.url
+                            )
+                            .setPositiveButton("Eliminar") { _, _ ->
+                                sites.removeAt(index)
+                                saveDomains()
+                                updateDomainsView()
+                            }
+                            .setNegativeButton("Cancelar", null)
+                            .show()
+                        true
+                    }
+
+                    row.addView(card, LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
+                    ).apply {
+                        rightMargin = if (col == 0) dp(10f) else 0
+                    })
+                } else {
+                    // Celda vacía invisible para mantener ambas columnas parejas.
+                    row.addView(
+                        View(this),
+                        LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                    )
+                }
+            }
+
+            domainsContainer.addView(row, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(10f)
+            })
+            i += 2
+        }
+    }
+
+    /**
      * Devuelve una versión corta de la dirección para el título de la tarjeta.
      * No modifica la URL almacenada ni la que se abre.
      */
@@ -629,6 +789,8 @@ class WebActivity : Activity() {
 
     // Permiso que la página web pidió mientras Android pregunta al usuario.
     private var pendingWebPermission: PermissionRequest? = null
+        // Modo de vista de los sitios: false = lista, true = cuadrícula.
+    private var gridMode = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
