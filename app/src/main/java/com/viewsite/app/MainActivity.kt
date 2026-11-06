@@ -63,6 +63,9 @@ class MainActivity : Activity() {
 
     // Campo opcional donde el usuario escribe el alias del sitio.
     private lateinit var aliasInput: EditText
+    
+    // Modo de vista de los sitios: false = lista, true = cuadrícula.
+    private var gridMode = false
 
     // Paleta estilo iOS. Centralizarlos facilita cambiar el estilo después.
     private val colorIOSBlue = Color.rgb(0, 122, 255)              // Azul iOS
@@ -789,8 +792,6 @@ class WebActivity : Activity() {
 
     // Permiso que la página web pidió mientras Android pregunta al usuario.
     private var pendingWebPermission: PermissionRequest? = null
-        // Modo de vista de los sitios: false = lista, true = cuadrícula.
-    private var gridMode = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
