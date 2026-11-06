@@ -80,7 +80,12 @@ class MainActivity : Activity() {
     private val iconPalettes = listOf(
         Pair(Color.rgb(94, 158, 255), Color.rgb(0, 122, 255)),    // Azul
         Pair(Color.rgb(168, 85, 247), Color.rgb(124, 58, 237)),    // Violeta
-        Pair(Color.rgb(52, 211, 153), Color.rgb(5, 150, 105))     // Verde
+        Pair(Color.rgb(52, 211, 153), Color.rgb(5, 150, 105)),     // Verde
+        Pair(Color.rgb(251, 146, 60), Color.rgb(234, 88, 12)),     // Naranja
+        Pair(Color.rgb(244, 114, 182), Color.rgb(219, 39, 119)),   // Rosa
+        Pair(Color.rgb(34, 211, 238), Color.rgb(8, 145, 178)),     // Cyan
+        Pair(Color.rgb(250, 204, 21), Color.rgb(202, 138, 4)),     // Amarillo
+        Pair(Color.rgb(148, 163, 184), Color.rgb(71, 85, 105))     // Gris
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
