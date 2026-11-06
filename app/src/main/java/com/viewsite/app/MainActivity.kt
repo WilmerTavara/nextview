@@ -25,6 +25,10 @@ import android.widget.Toast
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.webkit.PermissionRequest
+
 /**
  * Un sitio guardado: su dirección y, si el usuario escribió uno, su alias.
  */
@@ -618,6 +622,9 @@ class WebActivity : Activity() {
     private lateinit var loadingText: TextView
     private var baseHost: String? = null
 
+    // Permiso que la página web pidió mientras Android pregunta al usuario.
+    private var pendingWebPermission: PermissionRequest? = null
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -734,12 +741,46 @@ class WebActivity : Activity() {
         )*/
 
         // Los mensajes avanzan con el progreso real de la descarga.
-        webView.webChromeClient = object : WebChromeClient() {
+        /*webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
                 when {
                     newProgress < 55 -> loadingText.text = "Cargando…"
                     newProgress < 89 -> loadingText.text = "Casi listo…"
                     newProgress < 100 -> loadingText.text = "Un momento…"
+                }
+            }
+        }*/
+
+                webView.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                when {
+                    newProgress < 55 -> loadingText.text = "Cargando…"
+                    newProgress < 89 -> loadingText.text = "Casi listo…"
+                    newProgress < 100 -> loadingText.text = "Un momento…"
+                }
+            }
+
+            override fun onPermissionRequest(request: PermissionRequest?) {
+                val req = request ?: return
+
+                val isCamera = req.resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)
+                val isMic = req.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+
+                val cameraOk = !isCamera ||
+                    checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                val micOk = !isMic ||
+                    checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+                if (cameraOk && micOk) {
+                    // Ya tenemos el permiso de Android: se lo concedemos a la página.
+                    req.grant(req.resources)
+                } else {
+                    // Preguntamos al usuario con el diálogo del sistema.
+                    pendingWebPermission = req
+                    val needed = mutableListOf<String>()
+                    if (!cameraOk) needed.add(Manifest.permission.CAMERA)
+                    if (!micOk) needed.add(Manifest.permission.RECORD_AUDIO)
+                    requestPermissions(needed.toTypedArray(), 100)
                 }
             }
         }
@@ -785,6 +826,24 @@ class WebActivity : Activity() {
             webView.goBack()
         } else {
             super.onBackPressed()
+        }
+    }
+
+        override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 100) {
+            val req = pendingWebPermission
+            pendingWebPermission = null
+            if (grantResults.isNotEmpty() &&
+                grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                req?.grant(req.resources)
+            } else {
+                req?.deny()
+            }
         }
     }
 }
