@@ -294,20 +294,43 @@ class MainActivity : Activity() {
                 // Botón que alterna entre vista de lista y de cuadrícula.
         val viewToggle = TextView(this).apply {
             text = if (gridMode) "≡" else "▦"
-            textSize = 16f
+            textSize = 19f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(colorIOSBlue)
             gravity = Gravity.CENTER
             isClickable = true
-            background = roundedBackground(colorBlueTint, 0, 0, 10, 10)
+            setPadding(dp(16f), dp(10f), dp(16f), dp(10f))
+            minWidth = dp(48f)
+            minHeight = dp(48f)
+            background = roundedBackground(colorBlueTint, 0, 0, 12, 12)
         }
-        viewToggle.setOnClickListener {
+        
+        /*viewToggle.setOnClickListener {
             gridMode = !gridMode
             viewToggle.text = if (gridMode) "≡" else "▦"
             getSharedPreferences("viewsite", MODE_PRIVATE)
                 .edit().putBoolean("grid", gridMode).apply()
             updateDomainsView()
+        }*/
+
+                viewToggle.setOnClickListener {
+            gridMode = !gridMode
+            viewToggle.text = if (gridMode) "≡" else "▦"
+            getSharedPreferences("viewsite", MODE_PRIVATE)
+                .edit().putBoolean("grid", gridMode).apply()
+            // Microfundido: se difumina, se redibuja y reaparece.
+            domainsContainer.animate()
+                .alpha(0f)
+                .setDuration(90)
+                .withEndAction {
+                    updateDomainsView()
+                    domainsContainer.animate()
+                        .alpha(1f)
+                        .setDuration(90)
+                        .start()
+                }
         }
+        
         listHeader.addView(viewToggle, LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
