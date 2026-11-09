@@ -67,6 +67,10 @@ class MainActivity : Activity() {
     // Modo de vista de los sitios: false = lista, true = cuadrícula.
     private var gridMode = false
 
+    // Códigos para reconocer las respuestas de exportar/importar.
+    private val reqExport = 41
+    private val reqImport = 42
+
     // Paleta estilo iOS. Centralizarlos facilita cambiar el estilo después.
     private val colorIOSBlue = Color.rgb(0, 122, 255)              // Azul iOS
     private val colorBlueTint = Color.rgb(229, 240, 255)            // Fondo pill del contador
@@ -389,6 +393,49 @@ class MainActivity : Activity() {
             setPadding(dp(4f), dp(24f), dp(4f), dp(4f))
         })
 
+        // Acciones de respaldo: exportar e importar la lista de sitios.
+        val backupRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(0, dp(10f), 0, 0)
+        }
+        val exportButton = TextView(this).apply {
+            text = "Exportar"
+            textSize = 14f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(colorIOSBlue)
+            setPadding(dp(14f), dp(8f), dp(14f), dp(8f))
+            isClickable = true
+            background = roundedBackground(colorBlueTint, 0, 0, 10, 10)
+        }
+        val importButton = TextView(this).apply {
+            text = "Importar"
+            textSize = 14f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(colorIOSBlue)
+            setPadding(dp(14f), dp(8f), dp(14f), dp(8f))
+            isClickable = true
+            background = roundedBackground(colorBlueTint, 0, 0, 10, 10)
+        }
+        exportButton.setOnClickListener {
+            startActivityForResult(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                type = "text/plain"
+                addCategory(Intent.CATEGORY_OPENABLE)
+                putExtra(Intent.EXTRA_TITLE, "viewsite.txt")
+            }, reqExport)
+        }
+        importButton.setOnClickListener {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                type = "text/plain"
+                addCategory(Intent.CATEGORY_OPENABLE)
+            }, reqImport)
+        }
+        backupRow.addView(exportButton, LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        ).apply { rightMargin = dp(10f) })
+        backupRow.addView(importButton)
+        content.addView(backupRow)
+
         // Agrega el contenido al área desplazable usando parámetros compatibles.
         scrollView.addView(
             content,
@@ -679,7 +726,21 @@ class MainActivity : Activity() {
                     card.setOnClickListener {
                         startActivity(Intent(this, WebActivity::class.java).putExtra("url", sites[index].url))
                     }
-                    card.setOnLongClickListener {
+
+                    card.setOnLongClickListener {   // en renderList se llama "item" — usa el nombre que ya tiene ahí
+                AlertDialog.Builder(this)
+                    .setTitle(if (site.alias.isNotBlank()) site.alias else site.url)
+                    .setItems(arrayOf("✏️  Editar alias", "🗑  Eliminar sitio")) { _, which ->
+                        if (which == 0) showEditAliasDialog(index)
+                        else confirmDelete(index)
+                    }
+                    .setNegativeButton("Cancelar", null)
+                    .show()
+                true
+            }
+                    
+                    //ANTES DE AGREGAR EDITAR
+                    /*card.setOnLongClickListener {
                         AlertDialog.Builder(this)
                             .setTitle("¿Eliminar sitio?")
                             .setMessage(
@@ -693,7 +754,7 @@ class MainActivity : Activity() {
                             .setNegativeButton("Cancelar", null)
                             .show()
                         true
-                    }
+                    }*/
 
                     row.addView(card, LinearLayout.LayoutParams(
                         0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
@@ -716,6 +777,111 @@ class MainActivity : Activity() {
                 bottomMargin = dp(10f)
             })
             i += 2
+        }
+    }
+
+        /**
+     * Diálogo para editar el alias de un sitio sin cambiar su dirección.
+     */
+    private fun showEditAliasDialog(index: Int) {
+        val site = sites[index]
+        val input = EditText(this).apply {
+            setText(site.alias)
+            setSingleLine(true)
+            hint = "Alias (opcional)"
+        }
+        val pad = (16 * resources.displayMetrics.density).toInt()
+        val wrap = LinearLayout(this).apply {
+            setPadding(pad, pad, pad, 0)
+            addView(input, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ))
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Editar alias")
+            .setView(wrap)
+            .setPositiveButton("Guardar") { _, _ ->
+                sites[index] = Site(site.url, input.text.toString().trim())
+                saveDomains()
+                updateDomainsView()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    /**
+     * Confirmación clásica de borrado (la misma de siempre, como método).
+     */
+    private fun confirmDelete(index: Int) {
+        val site = sites[index]
+        AlertDialog.Builder(this)
+            .setTitle("¿Eliminar sitio?")
+            .setMessage(if (site.alias.isNotBlank()) site.alias + "\n" + site.url else site.url)
+            .setPositiveButton("Eliminar") { _, _ ->
+                sites.removeAt(index)
+                saveDomains()
+                updateDomainsView()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    /**
+     * Escribe la lista en el archivo que el usuario eligió (formato url|alias).
+     */
+    private fun exportList(uri: Uri) {
+        try {
+            val stored = sites.joinToString("\n") { site ->
+                if (site.alias.isBlank()) site.url else site.url + "|" + site.alias
+            }
+            contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(stored.toByteArray(Charsets.UTF_8))
+            }
+            Toast.makeText(this, "Lista exportada", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            Toast.makeText(this, "No se pudo exportar", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * Lee una lista exportada y agrega los sitios que no existan todavía.
+     */
+    private fun importList(uri: Uri) {
+        try {
+            val text = contentResolver.openInputStream(uri)?.use { input ->
+                input.readBytes().toString(Charsets.UTF_8)
+            } ?: return
+            var added = 0
+            for (line in text.split("\n")) {
+                val cleaned = line.trim()
+                if (cleaned.isBlank()) continue
+                val site = if (cleaned.contains("|")) {
+                    val parts = cleaned.split("|", limit = 2)
+                    Site(parts[0], parts[1])
+                } else {
+                    Site(cleaned, "")
+                }
+                if (sites.none { it.url == site.url }) {
+                    sites.add(site)
+                    added++
+                }
+            }
+            saveDomains()
+            updateDomainsView()
+            Toast.makeText(this, "$added sitios importados", Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+            Toast.makeText(this, "No se pudo importar", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != RESULT_OK) return
+        val uri = data?.data ?: return
+        when (requestCode) {
+            reqExport -> exportList(uri)
+            reqImport -> importList(uri)
         }
     }
 
